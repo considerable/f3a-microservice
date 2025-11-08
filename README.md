@@ -1,0 +1,337 @@
+# F3A Pattern Aerobatics RC Club - Microservice v2
+
+🚀 **Next-generation microservice for F3A Pattern Aerobatics RC Club**
+
+Modern containerized microservice with API endpoints, health monitoring, and scalable Kubernetes deployment.
+
+## 📁 Project Structure
+
+```
+f3a-microservice/
+├── .github/workflows/     # 🔒 Security & CI/CD
+│   └── security.yml       # Automated secret scanning
+├── iac/                   # 🏗️ Infrastructure as Code (Terraform)
+│   ├── main.tf            # AWS EC2 + VPC + security groups
+│   ├── variables.tf       # Configuration parameters
+│   ├── outputs.tf         # Instance details and access info
+│   ├── user-data.sh       # K3s installation script
+│   └── terraform.tfvars   # AWS configuration
+├── k8s/                   # ☸️ Kubernetes Manifests
+│   ├── namespace.yaml     # Isolated namespace
+│   ├── deployment.yaml    # Application deployment
+│   ├── service.yaml       # Service configuration
+│   └── deploy.sh          # Deployment automation
+├── app/                   # 🟢 Node.js Application
+│   ├── package.json       # Dependencies
+│   ├── server.js          # Express API server
+│   ├── Dockerfile         # Container build
+│   ├── healthcheck.js     # Health monitoring
+│   └── public/            # Web assets
+│       ├── index.html     # Frontend
+│       ├── style.css      # Styling
+│       └── app.js         # Client-side JS
+├── scripts/               # 🔧 Automation Scripts
+│   ├── deploy.sh          # Full deployment
+│   └── simple-deploy.sh   # Basic deployment
+├── .pre-commit-config.yaml # Pre-commit hooks
+├── .secrets.baseline      # Secret scanning baseline
+├── Makefile               # Workflow automation
+└── .gitignore             # Git ignore rules
+```
+
+## 🚀 Quick Start
+
+### Prerequisites
+- AWS CLI configured
+- Terraform installed
+- Domain: `f3a-pattern-aerobatics-rc.club`
+- Hosted Zone: `Z00071653MWP8XE0V1MUU`
+
+### Setup & Deploy
+```bash
+# Setup security tools
+make setup
+
+# Deploy infrastructure
+make deploy-infra
+
+# Deploy application
+make deploy-app
+
+# Or deploy everything
+make deploy
+
+# Test endpoints
+make test
+```
+
+### Access URLs
+- **Main Site**: `https://f3a-pattern-aerobatics-rc.club` (GitHub Pages)
+- **Microservice**: `http://app.f3a-pattern-aerobatics-rc.club:30080`
+- **Health Check**: `http://app.f3a-pattern-aerobatics-rc.club:30080/health`
+- **Club API**: `http://app.f3a-pattern-aerobatics-rc.club:30080/api/club`
+- **Events API**: `http://app.f3a-pattern-aerobatics-rc.club:30080/api/events`
+- **Aircraft API**: `http://app.f3a-pattern-aerobatics-rc.club:30080/api/aircraft`
+- **Legacy S3**: `http://s3.f3a-pattern-aerobatics-rc.club`
+
+## 🎯 Features
+
+- ✅ **Multi-tier architecture**: GitHub Pages + K3s + S3
+- ✅ **Kubernetes-native**: Full K8s deployment
+- ✅ **API-first**: RESTful endpoints
+- ✅ **Health monitoring**: Liveness/readiness probes
+- ✅ **Auto-scaling**: HPA ready
+- ✅ **DNS integration**: Route53 automation
+- ✅ **Cost-optimized**: Spot instances (~70% savings)
+- ✅ **Security scanning**: Automated secret detection
+- ✅ **Pre-commit hooks**: Local security validation
+
+## 🔄 Deployment Strategy
+
+**Main Domain** (`f3a-pattern-aerobatics-rc.club`):
+- GitHub Pages for static content, documentation
+- Fast CDN delivery, zero cost
+
+**App Subdomain** (`app.f3a-pattern-aerobatics-rc.club`):
+- Dynamic microservice with APIs
+- Kubernetes orchestration
+- Real-time data processing
+
+**S3 Subdomain** (`s3.f3a-pattern-aerobatics-rc.club`):
+- Legacy static site (can be retired)
+- Backup/archive content
+
+## 🏗️ Architecture
+
+### DNS Structure
+```
+f3a-pattern-aerobatics-rc.club     → GitHub Pages (main site)
+app.f3a-pattern-aerobatics-rc.club  → K3s Microservice (this project)
+s3.f3a-pattern-aerobatics-rc.club   → S3 Static Site (legacy)
+```
+
+### CI/CD Deployment Flow
+```mermaid
+sequenceDiagram
+    participant Dev as Developer
+    participant Git as Git Repo
+    participant GH as GitHub Pages
+    participant TF as Terraform
+    participant AWS as AWS Cloud
+    participant OCI as Oracle Cloud
+    participant EC2 as EC2 Dev
+    participant ARM as ARM Prod
+    participant K3s as K3s Cluster
+    participant App as Node.js App
+
+    Dev->>Git: git push code
+    Git->>GH: Auto-deploy main site ($0)
+    GH-->>GH: f3a-pattern-aerobatics-rc.club ✅
+
+    Note over Dev,EC2: Development (AWS)
+    Dev->>TF: terraform apply (dev)
+    TF->>AWS: t3.small spot ($4.50/mo)
+    AWS->>EC2: Instance ready (20GB EBS)
+    Dev->>EC2: Deploy Node.js app
+    EC2->>App: Express on port 3000
+    Dev->>App: curl test ✅
+
+    Note over Dev,ARM: Production (Oracle)
+    Dev->>TF: terraform apply (prod)
+    TF->>OCI: ARM Ampere free tier ($0/mo)
+    OCI->>ARM: 4 vCPU, 24GB RAM ready
+    Dev->>ARM: Deploy K3s + app
+    ARM->>K3s: Install K3s cluster
+    K3s->>App: Deploy 3 replicas
+    App-->>Dev: Production ready ✅
+```
+
+### Database Architecture (PlanetScale)
+```
+AWS EC2 (Dev) ──┐
+                ├─→ Internet ─→ PlanetScale Global Network
+Oracle ARM ─────┘                    ↓
+                              MySQL-Compatible Database
+                                     ↓
+                              Automatic Scaling & Backups
+```
+
+### Complete Architecture Flow
+```
+GitHub Pages ────→ f3a-pattern-aerobatics-rc.club (Static Site)
+                                    ↓
+Route53 DNS ─────→ app.f3a-pattern-aerobatics-rc.club
+                                    ↓
+              EC2/Oracle → K3s → NodePort → Express API
+                                                ↓
+                                           Modern Web UI
+                                                ↓
+                                          PlanetScale DB
+```
+
+## 💰 Cost Estimate
+- **Development**: ~$4.50/month (AWS t3.small spot)
+- **Production**: $0/month (Oracle Cloud free tier)
+- **Database**: $0/month (PlanetScale free tier)
+- **Total**: $4.50/month for full dev + prod setup
+- **Savings**: 70% vs AWS on-demand pricing
+
+## 💾 Database Strategy
+
+**PlanetScale MySQL (Free Tier):**
+- **Storage**: 1GB (perfect for F3A club data)
+- **Reads**: 1 billion/month
+- **Writes**: 10 million/month
+- **Branches**: 1 production + 1 development
+- **Multi-Cloud**: Works from both AWS and Oracle
+- **Features**: Automatic scaling, backups, branching
+
+**Connection Example:**
+```javascript
+const mysql = require('mysql2');
+const connection = mysql.createConnection({
+  host: 'aws.connect.psdb.cloud',
+  username: 'f3a-club-user',
+  password: process.env.DATABASE_PASSWORD,
+  database: 'f3a-club',
+  ssl: { rejectUnauthorized: true }
+});
+```
+
+## 🔒 Security
+
+### Automated Secret Scanning
+- **GitHub Actions**: Trivy scanner on every push/PR
+- **Pre-commit hooks**: Local validation before commits
+- **Baseline scanning**: No secrets detected in codebase
+
+### Two-Layer Protection
+**Local (Pre-commit):**
+- Runs `detect-secrets` before each commit
+- Blocks commits containing API keys, tokens, passwords
+- Validates YAML files and removes large files
+
+**CI/CD (GitHub Actions):**
+- Trivy security scanner on push/PR to main/develop
+- Results uploaded to GitHub Security tab
+- Prevents merging if secrets detected
+
+### Security Features
+- Encrypted EBS volumes
+- Security groups with minimal access
+- Environment variable configuration
+- No hardcoded credentials
+
+## 🛠️ IaC Language Choices
+
+### Infrastructure (Terraform) ✅
+- **AWS Resources**: VPC, EC2, Route53, Security Groups
+- **State Management**: Remote state, drift detection
+- **Multi-Cloud**: AWS (dev) + Oracle (prod)
+
+### K3s Installation (User-Data Script) ✅
+- **Cloud-Init**: Automated K3s + Docker installation
+- **Simple & Reliable**: No SSH required
+- **Cloud-Agnostic**: Works on AWS and Oracle
+
+### Application Deployment
+- **Single Environment**: `kubectl apply` (current)
+- **Multi-Environment**: Helm charts (recommended)
+- **GitOps**: ArgoCD (future consideration)
+
+## 🌍 Multi-Environment Strategy
+
+### Development (AWS)
+```yaml
+Instance: t3.small spot (2 vCPU, 2GB RAM)
+Cost: $4.50/month
+Replicas: 1
+Resources: 500m CPU, 512Mi RAM
+```
+
+### Production (Oracle Cloud)
+```yaml
+Instance: ARM Ampere (4 vCPU, 24GB RAM)
+Cost: $0/month (free tier)
+Replicas: 3
+Resources: 1000m CPU, 1Gi RAM
+```
+
+### Deployment Commands
+```bash
+# Dev (AWS)
+helm install f3a-dev ./chart -f values-dev.yaml
+
+# Prod (Oracle)
+helm install f3a-prod ./chart -f values-prod.yaml
+```
+
+## 🚀 Current Deployment
+- **Instance**: `t3.small-spot-4.50mo` (instance-id-placeholder)
+- **IP**: <your-instance-ip>
+- **Region**: us-west-2
+- **AMI**: Amazon Linux 2023
+- **EBS**: 20GB GP3 (encrypted)
+- **SSH**: `ssh -i ~/.ssh/id_rsa ec2-user@<your-instance-ip>`
+- **Status**: ✅ **READY FOR DEPLOYMENT**
+
+## 📝 Deployment Log
+
+### Infrastructure Deployed ✅
+```bash
+# Terraform successfully created:
+# - VPC with public subnet
+# - t3.small spot instance (~70% cost savings)
+# - 20GB encrypted EBS volume
+# - Security groups (SSH, HTTP, HTTPS, K3s, NodePort, 3000)
+# - Route53 DNS: app.f3a-pattern-aerobatics-rc.club → <your-instance-ip>
+# - SSH key integration with ~/.ssh/id_rsa
+```
+
+### Application Deployment ✅
+```bash
+# Node.js 18.20.8 installed successfully
+# Express microservice running on port 3000
+# All endpoints tested and working
+```
+
+### Test Results ✅
+```bash
+# Health Check
+curl -s http://<your-instance-ip>:3000/health | jq
+{
+  "status": "healthy",
+  "timestamp": "2025-11-08T20:15:28.233Z",
+  "service": "f3a-microservice",
+  "version": "1.0.0"
+}
+
+# Club API
+curl -s http://<your-instance-ip>:3000/api/club | jq
+{
+  "name": "F3A Pattern Aerobatics RC Club",
+  "description": "Precision aerobatic flying with radio-controlled aircraft",
+  "location": "Pacific Northwest",
+  "founded": "1985",
+  "activities": [
+    "F3A Pattern Competition",
+    "Training Workshops",
+    "Monthly Fly-ins",
+    "Equipment Reviews"
+  ]
+}
+
+# Events API
+curl -s http://<your-instance-ip>:3000/api/events | jq
+{
+  "upcoming": [
+    {
+      "id": 1,
+      "title": "Monthly Club Meeting",
+      "date": "2024-12-07",
+      "time": "10:00 AM",
+      "location": "Club Field"
+    }
+  ]
+}
+```
