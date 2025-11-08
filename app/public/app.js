@@ -2,7 +2,7 @@
 
 class F3AApp {
     constructor() {
-        this.apiBase = window.location.origin;
+        this.apiBase = 'http://app.f3a-pattern-aerobatics-rc.club:30080';
         this.init();
     }
 

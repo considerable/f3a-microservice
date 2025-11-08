@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>F3A Pattern Aerobatics RC Club</title>
+</head>
+<body>
+    <header>
+        <h1 id="club-name">Loading...</h1>
+        <p id="club-description">Loading club information...</p>
+    </header>
+
+    <main>
+        <section>
+            <h2>Upcoming Events</h2>
+            <ul id="events-list">
+                <li>Loading events...</li>
+            </ul>
+        </section>
+
+        <section>
+            <h2>Service Status</h2>
+            <button onclick="checkServiceHealth()">Check API Health</button>
+            <div id="health-status"></div>
+        </section>
+    </main>
+
+    <script>
+        const API_BASE = 'https://app.f3a-pattern-aerobatics-rc.club:30080';
+
+        async function loadClubInfo() {
+            try {
+                const response = await fetch(`${API_BASE}/api/club`);
+                const data = await response.json();
+                document.getElementById('club-name').textContent = data.name;
+                document.getElementById('club-description').textContent = data.description;
+            } catch (error) {
+                console.error('Failed to load club info:', error);
+            }
+        }
+
+        async function loadEvents() {
+            try {
+                const response = await fetch(`${API_BASE}/api/events`);
+                const data = await response.json();
+                const eventsList = document.getElementById('events-list');
+                eventsList.innerHTML = '';
+
+                data.upcoming.forEach(event => {
+                    const li = document.createElement('li');
+                    li.innerHTML = `<strong>${event.title}</strong> - ${event.date} at ${event.time}`;
+                    eventsList.appendChild(li);
+                });
+            } catch (error) {
+                console.error('Failed to load events:', error);
+            }
+        }
+
+        async function checkServiceHealth() {
+            try {
+                const response = await fetch(`${API_BASE}/health`);
+                const data = await response.json();
+                document.getElementById('health-status').innerHTML =
+                    `<p>✅ Service is ${data.status} (${data.timestamp})</p>`;
+            } catch (error) {
+                document.getElementById('health-status').innerHTML =
+                    `<p>❌ Service unavailable</p>`;
+            }
+        }
+
+        // Load data when page loads
+        document.addEventListener('DOMContentLoaded', () => {
+            loadClubInfo();
+            loadEvents();
+        });
+    </script>
+</body>
+</html>

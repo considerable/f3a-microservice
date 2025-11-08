@@ -9,7 +9,10 @@ const PORT = process.env.PORT || 3000;
 
 // Middleware
 app.use(helmet());
-app.use(cors());
+app.use(cors({
+  origin: ['https://f3a-pattern-aerobatics-rc.club', 'http://localhost:3000'],
+  credentials: true
+}));
 app.use(compression());
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
@@ -91,10 +94,7 @@ app.get('/api/aircraft', (req, res) => {
   });
 });
 
-// Catch-all handler for SPA
-app.get('*', (req, res) => {
-  res.sendFile(path.join(__dirname, 'public', 'index.html'));
-});
+
 
 // Error handling middleware
 app.use((err, req, res, next) => {

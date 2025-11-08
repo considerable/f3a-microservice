@@ -85,6 +85,8 @@ make test
 - ✅ **Cost-optimized**: Spot instances (~70% savings)
 - ✅ **Security scanning**: Automated secret detection
 - ✅ **Pre-commit hooks**: Local security validation
+- ✅ **CORS enabled**: GitHub Pages integration ready
+- ✅ **Client-side integration**: JavaScript fetch API support
 
 ## 🔄 Deployment Strategy
 
@@ -110,7 +112,7 @@ app.f3a-pattern-aerobatics-rc.club  → K3s Microservice (this project)
 s3.f3a-pattern-aerobatics-rc.club   → S3 Static Site (legacy)
 ```
 
-### CI/CD Deployment Flow
+### Development Flow (AWS)
 ```mermaid
 sequenceDiagram
     participant Dev as Developer
@@ -118,25 +120,33 @@ sequenceDiagram
     participant GH as GitHub Pages
     participant TF as Terraform
     participant AWS as AWS Cloud
-    participant OCI as Oracle Cloud
-    participant EC2 as EC2 Dev
-    participant ARM as ARM Prod
-    participant K3s as K3s Cluster
+    participant EC2 as EC2 Instance
     participant App as Node.js App
 
-    Dev->>Git: git push code
-    Git->>GH: Auto-deploy main site ($0)
+    Dev->>Git: git push develop
+    Git->>GH: Auto-deploy docs ($0)
     GH-->>GH: f3a-pattern-aerobatics-rc.club ✅
 
-    Note over Dev,EC2: Development (AWS)
     Dev->>TF: terraform apply (dev)
     TF->>AWS: t3.small spot ($4.50/mo)
     AWS->>EC2: Instance ready (20GB EBS)
     Dev->>EC2: Deploy Node.js app
     EC2->>App: Express on port 3000
     Dev->>App: curl test ✅
+```
 
-    Note over Dev,ARM: Production (Oracle)
+### Production Flow (Oracle Cloud)
+```mermaid
+sequenceDiagram
+    participant Dev as Developer
+    participant Git as Git Repo
+    participant TF as Terraform
+    participant OCI as Oracle Cloud
+    participant ARM as ARM Instance
+    participant K3s as K3s Cluster
+    participant App as Node.js App
+
+    Dev->>Git: git push main
     Dev->>TF: terraform apply (prod)
     TF->>OCI: ARM Ampere free tier ($0/mo)
     OCI->>ARM: 4 vCPU, 24GB RAM ready
@@ -144,16 +154,6 @@ sequenceDiagram
     ARM->>K3s: Install K3s cluster
     K3s->>App: Deploy 3 replicas
     App-->>Dev: Production ready ✅
-```
-
-### Database Architecture (PlanetScale)
-```
-AWS EC2 (Dev) ──┐
-                ├─→ Internet ─→ PlanetScale Global Network
-Oracle ARM ─────┘                    ↓
-                              MySQL-Compatible Database
-                                     ↓
-                              Automatic Scaling & Backups
 ```
 
 ### Complete Architecture Flow
@@ -168,6 +168,34 @@ Route53 DNS ─────→ app.f3a-pattern-aerobatics-rc.club
                                                 ↓
                                           PlanetScale DB
 ```
+
+### Hybrid Architecture Benefits
+
+**Static Layer (GitHub Pages):**
+- Club information pages, documentation, photo galleries
+- Global CDN delivery, perfect SEO, zero server costs
+- Instant loading, high availability
+
+**Dynamic Layer (Node.js Microservice):**
+- Live event data, member registration, flight logs
+- Real-time API responses, database interactions
+- Scalable processing, business logic
+
+**Perfect Division:**
+```javascript
+// GitHub Pages: Static club page with dynamic content injection
+<div id="next-event">Loading next event...</div>
+
+// JavaScript fetches live data from microservice
+fetch('https://app.f3a-pattern-aerobatics-rc.club:30080/api/events')
+  .then(response => response.json())
+  .then(data => {
+    document.getElementById('next-event').innerHTML =
+      `Next Event: ${data.upcoming[0].title} on ${data.upcoming[0].date}`;
+  });
+```
+
+**Enterprise-grade architecture at hobby project cost!**
 
 ## 💰 Cost Estimate
 - **Development**: ~$4.50/month (AWS t3.small spot)
@@ -197,6 +225,36 @@ const connection = mysql.createConnection({
   ssl: { rejectUnauthorized: true }
 });
 ```
+
+## 🔗 GitHub Pages Integration
+
+### Client-Side API Consumption
+The microservice is configured with CORS to allow GitHub Pages to consume APIs:
+
+```javascript
+// Example: Fetch club information
+const API_BASE = 'https://app.f3a-pattern-aerobatics-rc.club:30080';
+
+async function loadClubInfo() {
+  try {
+    const response = await fetch(`${API_BASE}/api/club`);
+    const data = await response.json();
+    document.getElementById('club-name').textContent = data.name;
+  } catch (error) {
+    console.error('Failed to load club info:', error);
+  }
+}
+
+// Load on page ready
+document.addEventListener('DOMContentLoaded', loadClubInfo);
+```
+
+### Integration Benefits
+- ✅ **Cost Optimization**: Static content free, only pay for dynamic features
+- ✅ **Performance**: Fast static delivery + responsive APIs
+- ✅ **Scalability**: GitHub's CDN + your scalable microservice
+- ✅ **Flexibility**: Update static content via Git, dynamic data via APIs
+- ✅ **Reliability**: GitHub's uptime + your redundant microservice
 
 ## 🔒 Security
 
@@ -267,13 +325,13 @@ helm install f3a-prod ./chart -f values-prod.yaml
 ```
 
 ## 🚀 Current Deployment
-- **Instance**: `t3.small-spot-4.50mo` (instance-id-placeholder)
-- **IP**: <your-instance-ip>
+- **Instance**: `t3.small-spot-4.50mo` (i-0b7ad2ad5f09be2b7)
+- **IP**: 44.246.134.59
 - **Region**: us-west-2
 - **AMI**: Amazon Linux 2023
 - **EBS**: 20GB GP3 (encrypted)
-- **SSH**: `ssh -i ~/.ssh/id_rsa ec2-user@<your-instance-ip>`
-- **Status**: ✅ **READY FOR DEPLOYMENT**
+- **SSH**: `ssh -i ~/.ssh/id_rsa ec2-user@44.246.134.59`
+- **Status**: ✅ **DEPLOYED AND CORS ENABLED**
 
 ## 📝 Deployment Log
 
