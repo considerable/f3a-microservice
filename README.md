@@ -26,6 +26,14 @@ f3a-microservice/
 │   ├── server.js          # Express API server
 │   ├── Dockerfile         # Container build
 │   ├── healthcheck.js     # Health monitoring
+│   ├── database/          # SQLite database
+│   │   ├── f3a_brands.sql # Database schema
+│   │   └── f3a.db         # SQLite database file
+│   ├── data/              # JSON data files
+│   │   ├── brands.json    # F3A brands data
+│   │   ├── categories.json # Component categories
+│   │   ├── events.json    # Club events
+│   │   └── aircraft.json  # Aircraft specifications
 │   └── public/            # Web assets
 │       ├── index.html     # Frontend
 │       ├── style.css      # Styling
@@ -63,16 +71,63 @@ make deploy
 
 # Test endpoints
 make test
+
+# Configure GitHub Pages
+make setup-pages
+```
+
+### GitHub Pages Setup
+```bash
+# Enable GitHub Pages (already configured via workflow)
+gh api repos/:owner/:repo/pages
+
+# Add custom domain CNAME file
+echo "f3a-pattern-aerobatics-rc.club" > app/public/v2/CNAME
+git add app/public/v2/CNAME
+git commit -m "Add CNAME for GitHub Pages custom domain"
+git push
+
+# Update DNS to point to GitHub Pages
+aws route53 change-resource-record-sets --hosted-zone-id Z00071653MWP8XE0V1MUU --change-batch '{
+  "Changes": [{
+    "Action": "UPSERT",
+    "ResourceRecordSet": {
+      "Name": "f3a-pattern-aerobatics-rc.club",
+      "Type": "A",
+      "TTL": 300,
+      "ResourceRecords": [
+        {"Value": "185.199.108.153"},
+        {"Value": "185.199.109.153"},
+        {"Value": "185.199.110.153"},
+        {"Value": "185.199.111.153"}
+      ]
+    }
+  }]
+}'
+
+# Check deployment status
+gh run list --workflow=pages.yml --limit=1
+
+# Test both URLs
+curl -siL https://considerable.github.io/f3a-microservice/
+curl -siL https://f3a-pattern-aerobatics-rc.club
 ```
 
 ### Access URLs
 - **Main Site**: `https://f3a-pattern-aerobatics-rc.club` (GitHub Pages)
+- **GitHub Pages**: `https://considerable.github.io/f3a-microservice/`
 - **Microservice**: `http://app.f3a-pattern-aerobatics-rc.club:30080`
 - **Health Check**: `http://app.f3a-pattern-aerobatics-rc.club:30080/health`
 - **Club API**: `http://app.f3a-pattern-aerobatics-rc.club:30080/api/club`
 - **Events API**: `http://app.f3a-pattern-aerobatics-rc.club:30080/api/events`
 - **Aircraft API**: `http://app.f3a-pattern-aerobatics-rc.club:30080/api/aircraft`
-- **Legacy S3**: `http://s3.f3a-pattern-aerobatics-rc.club`
+- **Brands API**: `http://app.f3a-pattern-aerobatics-rc.club:30080/api/brands`
+- **Categories API**: `http://app.f3a-pattern-aerobatics-rc.club:30080/api/categories`
+- **Components API**: `http://app.f3a-pattern-aerobatics-rc.club:30080/api/components/{category}`
+- **Legacy S3**: `http://s3.f3a-pattern-aerobatics-rc.club` (HTTP only - S3 static hosting doesn't support HTTPS)
+- **S3 Direct**: `http://s3.f3a-pattern-aerobatics-rc.club.s3-website-us-west-2.amazonaws.com`
+
+> **Note**: S3 static website hosting only supports HTTP. For HTTPS, use GitHub Pages or add CloudFront distribution.
 
 ## 🎯 Features
 
@@ -87,6 +142,9 @@ make test
 - ✅ **Pre-commit hooks**: Local security validation
 - ✅ **CORS enabled**: GitHub Pages integration ready
 - ✅ **Client-side integration**: JavaScript fetch API support
+- ✅ **SQLite database**: Local database with JSON data sources
+- ✅ **F3A components**: Brands, categories, and aircraft specifications
+- ✅ **Git-based data**: Version-controlled JSON data files
 
 ## 🔄 Deployment Strategy
 
@@ -100,8 +158,9 @@ make test
 - Real-time data processing
 
 **S3 Subdomain** (`s3.f3a-pattern-aerobatics-rc.club`):
-- Legacy static site (can be retired)
+- Legacy static site (HTTP only - S3 limitation)
 - Backup/archive content
+- Direct endpoint: `s3.f3a-pattern-aerobatics-rc.club.s3-website-us-west-2.amazonaws.com`
 
 ## 🏗️ Architecture
 
@@ -166,7 +225,7 @@ Route53 DNS ─────→ app.f3a-pattern-aerobatics-rc.club
                                                 ↓
                                            Modern Web UI
                                                 ↓
-                                          PlanetScale DB
+                                          SQLite DB
 ```
 
 ### Hybrid Architecture Benefits
@@ -200,31 +259,42 @@ fetch('https://app.f3a-pattern-aerobatics-rc.club:30080/api/events')
 ## 💰 Cost Estimate
 - **Development**: ~$4.50/month (AWS t3.small spot)
 - **Production**: $0/month (Oracle Cloud free tier)
-- **Database**: $0/month (PlanetScale free tier)
+- **Database**: $0/month (SQLite local file)
 - **Total**: $4.50/month for full dev + prod setup
-- **Savings**: 70% vs AWS on-demand pricing
+- **Savings**: 70% vs AWS on-demand + 100% database savings
 
 ## 💾 Database Strategy
 
-**PlanetScale MySQL (Free Tier):**
-- **Storage**: 1GB (perfect for F3A club data)
-- **Reads**: 1 billion/month
-- **Writes**: 10 million/month
-- **Branches**: 1 production + 1 development
-- **Multi-Cloud**: Works from both AWS and Oracle
-- **Features**: Automatic scaling, backups, branching
+**SQLite with JSON Data Sources:**
+- **Storage**: Local SQLite database file
+- **Data Sources**: JSON files in Git repository
+- **Initialization**: Database populated from JSON on startup
+- **Version Control**: Data changes tracked in Git
+- **Zero Cost**: No external database service required
+- **Simplicity**: Single-file database, no network dependencies
 
-**Connection Example:**
+**Database Architecture:**
 ```javascript
-const mysql = require('mysql2');
-const connection = mysql.createConnection({
-  host: 'aws.connect.psdb.cloud',
-  username: 'f3a-club-user',
-  password: process.env.DATABASE_PASSWORD,
-  database: 'f3a-club',
-  ssl: { rejectUnauthorized: true }
+const sqlite3 = require('sqlite3');
+const fs = require('fs');
+
+// Initialize database from JSON files
+const db = new sqlite3.Database('./database/f3a.db');
+const brands = JSON.parse(fs.readFileSync('./data/brands.json'));
+const events = JSON.parse(fs.readFileSync('./data/events.json'));
+
+// Populate database on startup
+brands.forEach(brand => {
+  db.run('INSERT INTO brands (name, specialty) VALUES (?, ?)',
+    [brand.name, brand.specialty]);
 });
 ```
+
+**Data Management:**
+- **Development**: Edit JSON files, restart service
+- **Production**: Git push triggers database refresh
+- **Backup**: Git repository serves as backup
+- **Migration**: Schema changes via SQL files in Git
 
 ## 🔗 GitHub Pages Integration
 
@@ -256,6 +326,66 @@ document.addEventListener('DOMContentLoaded', loadClubInfo);
 - ✅ **Flexibility**: Update static content via Git, dynamic data via APIs
 - ✅ **Reliability**: GitHub's uptime + your redundant microservice
 
+## 🟨 JavaScript Technology Stack
+
+### Backend API (Node.js)
+- **Express.js**: Web framework for REST API endpoints
+- **CORS**: Cross-origin resource sharing for GitHub Pages integration
+- **Helmet**: Security middleware for HTTP headers
+- **Compression**: Response compression middleware
+
+### Frontend UI (Vanilla JavaScript)
+- **ES6+ Classes**: Modern JavaScript with `F3AApp` class architecture
+- **Fetch API**: Native browser API for HTTP requests
+- **Async/Await**: Modern asynchronous JavaScript patterns
+- **DOM Manipulation**: Direct DOM API usage (no frameworks)
+- **Event Listeners**: Native browser event handling
+
+### Architecture Style
+- **No Frontend Framework**: Pure vanilla JavaScript (no React/Vue/Angular)
+- **RESTful APIs**: Standard HTTP endpoints returning JSON
+- **Progressive Enhancement**: Works without JavaScript, enhanced with it
+- **Responsive Design**: CSS-based responsive layout
+
+### Key JavaScript Features
+
+**Frontend (`app.js`):**
+```javascript
+// ES6 Class-based architecture
+class F3AApp {
+  constructor() {
+    this.apiBase = 'http://app.f3a-pattern-aerobatics-rc.club:30080';
+  }
+
+  // Async/await for API calls
+  async loadClubInfo() {
+    const response = await fetch(`${this.apiBase}/api/club`);
+    const data = await response.json();
+  }
+
+  // Template literals for HTML generation
+  container.innerHTML = `<div class="card">${club.name}</div>`;
+}
+```
+
+**Backend (`server.js`):**
+```javascript
+// Express.js REST API
+app.get('/api/club', (req, res) => {
+  res.json({ name: 'F3A Pattern Aerobatics RC Club' });
+});
+
+// CORS configuration for GitHub Pages
+app.use(cors({
+  origin: ['https://f3a-pattern-aerobatics-rc.club']
+}));
+```
+
+**Lightweight, framework-free approach perfect for club websites with dynamic API integration!** ✅ **Performance**: Fast static delivery + responsive APIs
+- ✅ **Scalability**: GitHub's CDN + your scalable microservice
+- ✅ **Flexibility**: Update static content via Git, dynamic data via APIs
+- ✅ **Reliability**: GitHub's uptime + your redundant microservice
+
 ## 🔒 Security
 
 ### Automated Secret Scanning
@@ -277,6 +407,39 @@ document.addEventListener('DOMContentLoaded', loadClubInfo);
 ### Security Features
 - Encrypted EBS volumes
 - Security groups with minimal access
+- Environment variable configuration
+- No hardcoded credentials
+
+## 🌐 GitHub Pages Configuration
+
+### Automatic Deployment
+GitHub Actions workflow automatically deploys from `app/public/v2/` on every push to main branch.
+
+### Custom Domain Setup
+1. **CNAME File**: `app/public/v2/CNAME` contains custom domain
+2. **DNS Configuration**: A records point to GitHub Pages IPs
+3. **HTTPS**: Automatically enabled by GitHub Pages
+
+### Commands Reference
+```bash
+# Check Pages status
+gh api repos/:owner/:repo/pages
+
+# View deployment logs
+gh run list --workflow=pages.yml
+
+# Test endpoints
+curl -siL https://considerable.github.io/f3a-microservice/
+curl -siL https://f3a-pattern-aerobatics-rc.club
+```
+
+### GitHub Pages IPs (for DNS)
+```
+185.199.108.153
+185.199.109.153
+185.199.110.153
+185.199.111.153
+``` Security groups with minimal access
 - Environment variable configuration
 - No hardcoded credentials
 
