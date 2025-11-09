@@ -145,6 +145,9 @@ curl -siL https://f3a-pattern-aerobatics-rc.club
 - ✅ **SQLite database**: Local database with JSON data sources
 - ✅ **F3A components**: Brands, categories, and aircraft specifications
 - ✅ **Git-based data**: Version-controlled JSON data files
+- ✅ **GHCR integration**: GitHub Container Registry for multi-cloud
+- ✅ **Multi-cloud ready**: Same container image for AWS + Oracle
+- ✅ **Zero vendor lock-in**: Cloud-agnostic architecture
 
 ## 🔄 Deployment Strategy
 
@@ -163,6 +166,25 @@ curl -siL https://f3a-pattern-aerobatics-rc.club
 - Direct endpoint: `s3.f3a-pattern-aerobatics-rc.club.s3-website-us-west-2.amazonaws.com`
 
 ## 🏗️ Architecture
+
+### Multi-Cloud Container Architecture
+```mermaid
+graph TB
+    GitHub[GitHub Repository] --> GHCR[GitHub Container Registry]
+    GitHub --> Pages[GitHub Pages]
+
+    GHCR --> AWS[AWS EC2 + K3s]
+    GHCR --> Oracle[Oracle Cloud + K3s]
+
+    AWS --> DevAPI[Dev Microservice :30080]
+    Oracle --> ProdAPI[Prod Microservice :30080]
+
+    Pages --> DevAPI
+    Pages --> ProdAPI
+
+    DevAPI --> SQLite1[SQLite DB]
+    ProdAPI --> SQLite2[SQLite DB]
+```
 
 ### DNS Structure
 ```
@@ -215,17 +237,39 @@ sequenceDiagram
     App-->>Dev: Production ready ✅
 ```
 
-### Complete Architecture Flow
+### Complete Multi-Cloud Architecture Flow
 ```
-GitHub Pages ────→ f3a-pattern-aerobatics-rc.club (Static Site)
-                                    ↓
-Route53 DNS ─────→ app.f3a-pattern-aerobatics-rc.club
-                                    ↓
-              EC2/Oracle → K3s → NodePort → Express API
-                                                ↓
-                                           Modern Web UI
-                                                ↓
-                                          SQLite DB
+GitHub Repository ──→ GitHub Container Registry (GHCR)
+        │                           │
+        ↓                           ↓
+   GitHub Pages ────────────→ Multi-Cloud K3s Deployments
+        │                           │
+        ↓                           ↓
+Static Frontend ←──────────→ AWS Dev + Oracle Prod
+        │                           │
+        ↓                           ↓
+   API Calls ──────────────→ Express + SQLite
+```
+
+### Container Registry Strategy
+**GitHub Container Registry (GHCR):**
+- ✅ **Multi-Cloud**: Works with AWS, Oracle, any Kubernetes
+- ✅ **Zero Cost**: Free for public repositories
+- ✅ **Global CDN**: Fast image pulls worldwide
+- ✅ **Integrated**: Same GitHub authentication as code
+- ✅ **No Vendor Lock-in**: Cloud-agnostic container storage
+
+**Image Flow:**
+```bash
+# Build once, deploy anywhere
+docker build -t ghcr.io/considerable/f3a-microservice:latest .
+docker push ghcr.io/considerable/f3a-microservice:latest
+
+# Deploy to AWS K3s
+kubectl set image deployment/f3a-app f3a-app=ghcr.io/considerable/f3a-microservice:latest
+
+# Deploy to Oracle K3s (same image)
+kubectl set image deployment/f3a-app f3a-app=ghcr.io/considerable/f3a-microservice:latest
 ```
 
 ### Hybrid Architecture Benefits
@@ -439,7 +483,31 @@ curl -siL https://f3a-pattern-aerobatics-rc.club
 185.199.109.153
 185.199.110.153
 185.199.111.153
-``` Security groups with minimal access
+```
+
+## 📦 Container Registry (GHCR)
+
+### Automated Docker Builds
+GitHub Actions automatically builds and pushes Docker images to GHCR on every push to main.
+
+### Multi-Cloud Deployment
+```bash
+# Image is built once and deployed to multiple clouds
+Image: ghcr.io/considerable/f3a-microservice:latest
+
+# AWS K3s Deployment
+kubectl set image deployment/f3a-app f3a-app=ghcr.io/considerable/f3a-microservice:latest -n f3a-microservice
+
+# Oracle K3s Deployment (same image)
+kubectl set image deployment/f3a-app f3a-app=ghcr.io/considerable/f3a-microservice:latest -n f3a-microservice
+```
+
+### Container Registry Benefits
+- **🌍 Global CDN**: Fast pulls from any cloud
+- **💰 Zero Cost**: Free for public repositories
+- **🔒 Secure**: GitHub authentication integration
+- **☁️ Multi-Cloud**: Works with AWS, Oracle, any K8s
+- **🚀 Automated**: CI/CD builds on code changes Security groups with minimal access
 - Environment variable configuration
 - No hardcoded credentials
 
@@ -456,8 +524,9 @@ curl -siL https://f3a-pattern-aerobatics-rc.club
 - **Cloud-Agnostic**: Works on AWS and Oracle
 
 ### Application Deployment
-- **Single Environment**: `kubectl apply` (current)
-- **Multi-Environment**: Helm charts (recommended)
+- **Container Registry**: GitHub Container Registry (GHCR)
+- **Image Build**: GitHub Actions automated builds
+- **Multi-Cloud Deploy**: Same image to AWS + Oracle K3s
 - **GitOps**: ArgoCD (future consideration)
 
 ## 🌍 Multi-Environment Strategy
@@ -480,11 +549,17 @@ Resources: 1000m CPU, 1Gi RAM
 
 ### Deployment Commands
 ```bash
-# Dev (AWS)
-helm install f3a-dev ./chart -f values-dev.yaml
+# Build and push to GHCR (automated via GitHub Actions)
+git push origin main
 
-# Prod (Oracle)
-helm install f3a-prod ./chart -f values-prod.yaml
+# Deploy to AWS K3s
+./k8s/deploy.sh
+
+# Deploy to Oracle K3s (same image)
+./k8s/deploy.sh
+
+# Manual image update
+kubectl set image deployment/f3a-app f3a-app=ghcr.io/considerable/f3a-microservice:latest -n f3a-microservice
 ```
 
 ## 🚀 Current Deployment

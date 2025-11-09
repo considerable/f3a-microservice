@@ -17,8 +17,8 @@ spec:
     spec:
       containers:
       - name: f3a-app
-        image: f3a-microservice:latest
-        imagePullPolicy: Never
+        image: ghcr.io/considerable/f3a-microservice:latest
+        imagePullPolicy: Always
         ports:
         - containerPort: 3000
         env:
@@ -45,3 +45,11 @@ spec:
             port: 3000
           initialDelaySeconds: 5
           periodSeconds: 5
+        volumeMounts:
+        - name: sqlite-storage
+          mountPath: /app/database
+      imagePullSecrets:
+      - name: ghcr-secret
+      volumes:
+      - name: sqlite-storage
+        emptyDir: {}

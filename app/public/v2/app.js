@@ -11,6 +11,7 @@ class F3AApp {
         await this.loadClubInfo();
         await this.loadEvents();
         await this.loadAircraft();
+        await this.loadBrands();
         this.setupNavigation();
 
         // Periodic health check
@@ -126,6 +127,27 @@ class F3AApp {
         } catch (error) {
             container.innerHTML = '<div class="card">Failed to load aircraft information.</div>';
             console.error('Failed to load aircraft:', error);
+        }
+    }
+
+    async loadBrands() {
+        const container = document.getElementById('brands-list');
+
+        try {
+            const response = await fetch(`${this.apiBase}/api/brands`);
+            const data = await response.json();
+
+            container.innerHTML = data.brands.map(brand => `
+                <div class="card brand-card">
+                    <h3>${brand.name}</h3>
+                    <p><strong>Country:</strong> ${brand.country}</p>
+                    <p><strong>Specialty:</strong> ${brand.specialty}</p>
+                    <a href="${brand.website}" target="_blank">Visit Website</a>
+                </div>
+            `).join('');
+        } catch (error) {
+            container.innerHTML = '<div class="card">Backend API unavailable. Please start the microservice.</div>';
+            console.error('Failed to load brands from API:', error);
         }
     }
 
