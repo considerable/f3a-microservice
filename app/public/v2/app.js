@@ -2,7 +2,12 @@
 
 class F3AApp {
     constructor() {
-        this.apiBase = 'https://app.f3a-pattern-aerobatics-rc.club';
+        this.apiBase = 'http://app.f3a-pattern-aerobatics-rc.club:30080';
+
+        // Check if we're on HTTPS and warn about mixed content
+        if (window.location.protocol === 'https:') {
+            console.warn('Mixed content: HTTPS page trying to access HTTP API');
+        }
         this.init();
     }
 
@@ -37,8 +42,8 @@ class F3AApp {
             }
         } catch (error) {
             indicator.className = 'unhealthy';
-            if (error.message.includes('Mixed Content') || error.message.includes('blocked')) {
-                text.textContent = 'HTTPS/HTTP mixed content blocked';
+            if (window.location.protocol === 'https:') {
+                text.innerHTML = 'Mixed content blocked. <a href="http://considerable.github.io/f3a-microservice/" target="_blank">Try HTTP version</a>';
             } else {
                 text.textContent = 'Service unavailable';
             }
