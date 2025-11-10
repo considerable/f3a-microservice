@@ -37,7 +37,11 @@ class F3AApp {
             }
         } catch (error) {
             indicator.className = 'unhealthy';
-            text.textContent = 'Service unavailable';
+            if (error.message.includes('Mixed Content') || error.message.includes('blocked')) {
+                text.textContent = 'HTTPS/HTTP mixed content blocked';
+            } else {
+                text.textContent = 'Service unavailable';
+            }
             console.error('Health check failed:', error);
         }
     }
